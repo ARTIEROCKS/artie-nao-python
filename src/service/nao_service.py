@@ -70,7 +70,9 @@ class NAOService:
         tts.setVolume(volume)
         tts.say(bmle.speech['text'])
 
-        return None
+        #Now we should verify if the robot should listen to the student
+        if not bmle.speech.get('end'):
+            return None
 
     def reset_nao(self):
 
@@ -78,4 +80,6 @@ class NAOService:
         leds = self.session.service('ALLeds')
         leds.fadeRGB("FaceLeds", 0x00FFFFFF, 0.2)
 
-        return None
+        # Resets the posture
+        posture = self.session.service('ALRobotPosture')
+        posture.goToPosture('Stand', 0.5)

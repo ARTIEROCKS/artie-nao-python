@@ -20,6 +20,7 @@ class BMLService:
                 bmle.speech = {
                     'tone': child.attrib['tone'],
                     'speed': child.attrib['speed'],
-                    'text': child.find('text').text
+                    'text': child.find('text').text,
+                    'end': child.attrib['end'].lower() == 'true'
                 }
         return bmle
