@@ -1,4 +1,6 @@
 import qi
+import pika
+import datetime
 from motion import bored, happy, kisses, thinking, fear, excited, chill, curious, confused
 
 class NAOService:
@@ -17,11 +19,24 @@ class NAOService:
         "CONTEMPT": 0x000000FF, # Blue
         "NEUTRAL": 0x00FFFFFF # White
     }
+    vocabulary = ["si", "no"]
 
-    def __init__(self):
+    def __init__(self, queue_channel=None, conversation_queue=None):
         self.session = qi.Session()
         self.session.connect("tcp://192.168.0.100:9559")
+        self.channel = queue_channel
+        self.conversation_queue = conversation_queue
+        self.last_bmle_execution_time = None  # Stores the last execution timestamp
 
+    def get_last_execution_time_difference(self):
+
+        """Returns the last execution timestamp and the time difference in seconds with the current time."""
+        if self.last_bmle_execution_time is None:
+            return None, None  # No execution has been recorded yet
+
+        current_time = datetime.datetime.now()
+        time_difference = (current_time - self.last_bmle_execution_time).total_seconds()
+        return self.last_bmle_execution_time, time_difference
 
     def execute_bmle(self, bmle):
 
@@ -72,7 +87,18 @@ class NAOService:
 
         #Now we should verify if the robot should listen to the student
         if not bmle.speech.get('end'):
-            return None
+            asr = self.session.service('ALSpeechRecognition')
+            asr.setLanguage('Spanish')
+            asr.setVocabulary(self.vocabulary, False)
+
+            # Adds a bip when robot starts listening
+            asr.setAudioExpression(True)
+
+            # Start the subscription and the ends the subscription.
+            memory = self.session.service('ALMemory')
+            memory.subscriber('WordRecognized').signal.connect(self.speech_recognition)
+        else:
+            self.reset_nao()
 
     def reset_nao(self):
 
@@ -83,3 +109,26 @@ class NAOService:
         # Resets the posture
         posture = self.session.service('ALRobotPosture')
         posture.goToPosture('Stand', 0.5)
+
+        # Once the robot resets, we store the last execution timestamp
+        self.last_bmle_execution_time = datetime.datetime.now()
+
+
+    def speech_recognition(self, eventName, value, subscriberIdentifier):
+        try:
+            # Publish the message to the RabbitMQ queue
+            self.channel.basic_publish(
+                exchange='',
+                routing_key=self.conversation_queue,
+                body=value,
+                properties=pika.BasicProperties(
+                    delivery_mode=2  # Makes the message persistent
+                )
+            )
+
+            # Print the sent message
+            print(f"[x] Message sent to queue '{self.conversation_queue}': {value}")
+
+        except Exception as e:
+            # Catch and print any error
+            print(f"[ERROR] Failed to send message: {str(e)}")

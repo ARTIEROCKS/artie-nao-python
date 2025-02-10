@@ -8,10 +8,13 @@ def start_consuming():
     # Getting the connection data from the environment variables
     rabbitmq_host = os.getenv('APP_RABBITMQ_HOST', 'localhost')
     rabbitmq_port = os.getenv('APP_RABBITMQ_PORT', 5672)
-    rabbitmq_user = os.getenv('APP_RABBITMQ_USER', 'artie')
-    rabbitmq_password = os.getenv('APP_RABBITMQ_PASSWORD', 'ArtiE28130000')
+    rabbitmq_user = os.getenv('APP_RABBITMQ_USER', 'user')
+    rabbitmq_password = os.getenv('APP_RABBITMQ_PASSWORD', 'password')
     rabbitmq_vhost = os.getenv('APP_RABBITMQ_VHOST', '/')
-    rabbitmq_queue = 'pedagogicalInterventions'
+    pedagogical_interventions_queue = os.getenv('APP_RABBITMQ_INTERVENTIONS_QUEUE', '')
+    conversations_queue = os.getenv('APP_RABBITMQ_CONVERSATIONS_QUEUE','')
+    interventions_waiting_time = os.getenv('APP_INTERVENTIONS_WAITING_TIME', 60)
+
 
     # RabbitMQ connection
     credentials = pika.PlainCredentials(rabbitmq_user, rabbitmq_password)
@@ -20,19 +23,21 @@ def start_consuming():
     connection = pika.BlockingConnection(parameters)
     channel = connection.channel()
 
-    # Creation of the queue if it doesn't exist
-    channel.queue_declare(queue=rabbitmq_queue, durable=True, auto_delete=False)
+    # Creation of the queues if it doesn't exist
+    channel.queue_declare(queue=pedagogical_interventions_queue, durable=True, auto_delete=False)
+    channel.queue_declare(queue=conversations_queue, durable=True, auto_delete=False)
 
     # BML Service
     bml_service = BMLService()
 
-    # NAO Service
-    nao_service = NAOService()
+    # NAO Service sending the channel to rabbitmq and the conversation queue where the service should send the answer
+    nao_service = NAOService(channel, conversations_queue)
 
     # Subscription to the queue
-    channel.basic_consume(queue=rabbitmq_queue,
+    channel.basic_consume(queue=pedagogical_interventions_queue,
                           on_message_callback=lambda ch, method, properties, body: callback(ch, method, properties,
-                                                                                            body, bml_service, nao_service))
+                                                                                            body, bml_service, nao_service,
+                                                                                            interventions_waiting_time))
 
     # Waiting for new messages
     print('Waiting for new messages...')
@@ -40,12 +45,16 @@ def start_consuming():
 
 
 # Function to process the message queue
-def callback(ch, method, properties, body, bmle_service, nao_service):
+def callback(ch, method, properties, body, bmle_service, nao_service, interventions_waiting_time):
     print("Getting a new BMLe...")
 
     try:
-        bmle = bmle_service.deserialize(body)
-        nao_service.execute_bmle(bmle)
+        # Checks if the waiting time has been reached or not
+        if nao_service.get_last_execution_time_difference() >= interventions_waiting_time:
+            bmle = bmle_service.deserialize(body)
+            nao_service.execute_bmle(bmle)
+        else:
+            print("The waiting time between interactions has not yet been reached.")
     except Exception as e:
         print(f"We had an error when processing the BMLe: {e}")
 
