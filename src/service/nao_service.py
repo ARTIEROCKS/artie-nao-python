@@ -1,5 +1,6 @@
 import qi
 import pika
+import time
 import datetime
 from motion import bored, happy, kisses, thinking, fear, excited, chill, curious, confused
 
@@ -21,22 +22,38 @@ class NAOService:
     }
     vocabulary = ["si", "no"]
 
-    def __init__(self, queue_channel=None, conversation_queue=None):
-        self.session = qi.Session()
-        self.session.connect("tcp://192.168.0.100:9559")
+    def __init__(self, queue_channel=None, conversation_queue=None, robot_address=None):
         self.channel = queue_channel
         self.conversation_queue = conversation_queue
         self.last_bmle_execution_time = None  # Stores the last execution timestamp
+
+        # Attempt to connect with retry mechanism
+        self.session = self.connect_with_retry(robot_address=robot_address)
+
+    def connect_with_retry(self, max_retries=5, delay=5, robot_address = None):
+        """Attempts to connect to the NAO robot, retrying in case of failure."""
+        for attempt in range(max_retries):
+            try:
+                session = qi.Session()
+                session.connect(robot_address)
+                print("Successfully connected to NAO.")
+                return session
+            except Exception as e:
+                print(f"[ERROR] Connection attempt {attempt + 1}/{max_retries} failed: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(delay)  # Wait before retrying
+                else:
+                    raise Exception("Failed to connect to NAO after multiple attempts.")
 
     def get_last_execution_time_difference(self):
 
         """Returns the last execution timestamp and the time difference in seconds with the current time."""
         if self.last_bmle_execution_time is None:
-            return None, None  # No execution has been recorded yet
+            return None  # No execution has been recorded yet
 
         current_time = datetime.datetime.now()
         time_difference = (current_time - self.last_bmle_execution_time).total_seconds()
-        return self.last_bmle_execution_time, time_difference
+        return time_difference
 
     def execute_bmle(self, bmle):
 

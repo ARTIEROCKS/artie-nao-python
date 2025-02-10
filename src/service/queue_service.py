@@ -15,6 +15,9 @@ def start_consuming():
     conversations_queue = os.getenv('APP_RABBITMQ_CONVERSATIONS_QUEUE','')
     interventions_waiting_time = os.getenv('APP_INTERVENTIONS_WAITING_TIME', 60)
 
+    # Environment variables about the Robot
+    robot_address = os.getenv('APP_ROBOT_ADDRESS', 'tcp://192.168.0.100:9559')
+
 
     # RabbitMQ connection
     credentials = pika.PlainCredentials(rabbitmq_user, rabbitmq_password)
@@ -30,8 +33,8 @@ def start_consuming():
     # BML Service
     bml_service = BMLService()
 
-    # NAO Service sending the channel to rabbitmq and the conversation queue where the service should send the answer
-    nao_service = NAOService(channel, conversations_queue)
+    # NAO Service
+    nao_service = NAOService(channel, conversations_queue, robot_address)
 
     # Subscription to the queue
     channel.basic_consume(queue=pedagogical_interventions_queue,
@@ -50,7 +53,8 @@ def callback(ch, method, properties, body, bmle_service, nao_service, interventi
 
     try:
         # Checks if the waiting time has been reached or not
-        if nao_service.get_last_execution_time_difference() >= interventions_waiting_time:
+        if (nao_service.get_last_execution_time_difference() is None or
+                nao_service.get_last_execution_time_difference() >= interventions_waiting_time):
             bmle = bmle_service.deserialize(body)
             nao_service.execute_bmle(bmle)
         else:
