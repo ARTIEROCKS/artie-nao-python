@@ -2,6 +2,7 @@ import qi
 import pika
 import time
 import datetime
+import json
 from motion import bored, happy, kisses, thinking, fear, excited, chill, curious, confused
 
 class NAOService:
@@ -23,6 +24,8 @@ class NAOService:
     vocabulary = ["si", "no"]
 
     def __init__(self, queue_channel=None, conversation_queue=None, robot_address=None):
+        self.context_id = None
+        self.user_id = None
         self.channel = queue_channel
         self.conversation_queue = conversation_queue
         self.last_bmle_execution_time = None  # Stores the last execution timestamp
@@ -56,6 +59,10 @@ class NAOService:
         return time_difference
 
     def execute_bmle(self, bmle):
+
+        # Sets the information about the context and the user
+        self.context_id = bmle.character
+        self.user_id = bmle.id
 
         # Sets the facial leds
         leds = self.session.service('ALLeds')
@@ -133,11 +140,21 @@ class NAOService:
 
     def speech_recognition(self, eventName, value, subscriberIdentifier):
         try:
+
+            # Creates the response JSON object
+            message_data = {
+                "userId": self.user_id,
+                "contextId": self.context_id,
+                "message": value,
+                "prompt": ""
+            }
+            message_json = json.dumps(message_data, ensure_ascii=False)
+
             # Publish the message to the RabbitMQ queue
             self.channel.basic_publish(
                 exchange='',
                 routing_key=self.conversation_queue,
-                body=value,
+                body=message_json,
                 properties=pika.BasicProperties(
                     delivery_mode=2  # Makes the message persistent
                 )
