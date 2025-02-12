@@ -143,12 +143,12 @@ class NAOService:
 
             # Creates the response JSON object
             message_data = {
-                'userId': self.user_id,
-                'contextId': self.context_id,
-                'message': value,
-                'prompt': ''
+                "userId": self.user_id,
+                "contextId": self.context_id,
+                "message": value,
+                "prompt": ""
             }
-            message_json = json.dumps(message_data)
+            message_json = json.dumps(message_data, ensure_ascii=False)
 
             # Publish the message to the RabbitMQ queue
             self.channel.basic_publish(
