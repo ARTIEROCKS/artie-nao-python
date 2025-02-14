@@ -3,6 +3,7 @@ import pika
 import time
 import datetime
 import json
+from service.speech_service import SpeechService
 from motion import bored, happy, kisses, thinking, fear, excited, chill, curious, confused
 
 class NAOService:
@@ -24,6 +25,8 @@ class NAOService:
     vocabulary = ["si", "no"]
 
     def __init__(self, queue_channel=None, conversation_queue=None, robot_address=None):
+        self.asr = None
+        self.memory = None
         self.context_id = None
         self.user_id = None
         self.channel = queue_channel
@@ -32,6 +35,9 @@ class NAOService:
 
         # Attempt to connect with retry mechanism
         self.session = self.connect_with_retry(robot_address=robot_address)
+
+        # Initializes Speech Service
+        self.speech_service = SpeechService()
 
     def connect_with_retry(self, max_retries=5, delay=5, robot_address = None):
         """Attempts to connect to the NAO robot, retrying in case of failure."""
@@ -74,27 +80,26 @@ class NAOService:
         posture.goToPosture(bmle.posture, 0.5)
 
         # Sets the gestures
-        names, times, keys = list()
-        if bmle.gesture.upper() == "BORED":
+        if bmle.gesture == "BORED":
             names, times, keys = bored.names, bored.times, bored.keys
-        elif bmle.gesture.upper() == "KISSES":
+        elif bmle.gesture == "KISSES":
             names, times, keys = kisses.names, kisses.times, kisses.keys
-        elif bmle.gesture.upper() == "THINKING":
+        elif bmle.gesture == "THINKING":
             names, times, keys = thinking.names, thinking.times, thinking.keys
-        elif bmle.gesture.upper() == "FEAR":
+        elif bmle.gesture == "FEAR":
             names, times, keys = fear.names, fear.times, fear.keys
-        elif bmle.gesture.upper() == "EXCITED":
+        elif bmle.gesture == "EXCITED":
             names, times, keys = excited.names, excited.times, excited.keys
-        elif bmle.gesture.upper() == "CHILL":
+        elif bmle.gesture == "CHILL":
             names, times, keys = chill.names, chill.times, chill.keys
-        elif bmle.gesture.upper() == "CURIOUS":
+        elif bmle.gesture == "CURIOUS":
             names, times, keys = curious.names, curious.times, curious.keys
-        elif bmle.gesture.upper() == "CONFUSED":
+        elif bmle.gesture == "CONFUSED":
             names, times, keys = confused.names, confused.times, confused.keys
         else:
             names, times, keys = happy.names, happy.times, happy.keys
 
-        if names.count() > 0:
+        if len(names) > 0:
             motion = self.session.service('ALMotion')
             motion.angleInterpolation(names, keys, times, True)
 
@@ -111,16 +116,13 @@ class NAOService:
 
         #Now we should verify if the robot should listen to the student
         if not bmle.speech.get('end'):
-            asr = self.session.service('ALSpeechRecognition')
-            asr.setLanguage('Spanish')
-            asr.setVocabulary(self.vocabulary, False)
+            speech_value = self.speech_service.listen()
 
-            # Adds a bip when robot starts listening
-            asr.setAudioExpression(True)
+            if speech_value is not None:
+                self.send_speech_recognition(self.user_id, self.context_id, speech_value, self.conversation_queue)
+            else:
+                print("No speech detected!!")
 
-            # Start the subscription and the ends the subscription.
-            memory = self.session.service('ALMemory')
-            memory.subscriber('WordRecognized').signal.connect(self.speech_recognition)
         else:
             self.reset_nao()
 
@@ -138,22 +140,21 @@ class NAOService:
         self.last_bmle_execution_time = datetime.datetime.now()
 
 
-    def speech_recognition(self, eventName, value, subscriberIdentifier):
+    def send_speech_recognition(self, user_id, context_id, speech_value, conversation_queue):
         try:
-
             # Creates the response JSON object
             message_data = {
-                "userId": self.user_id,
-                "contextId": self.context_id,
-                "message": value,
-                "prompt": ""
+                "userId": user_id,
+                "contextId": context_id,
+                "userPrompt": speech_value,
+                "systemPrompt": ""
             }
             message_json = json.dumps(message_data, ensure_ascii=False)
 
             # Publish the message to the RabbitMQ queue
             self.channel.basic_publish(
                 exchange='',
-                routing_key=self.conversation_queue,
+                routing_key= conversation_queue,
                 body=message_json,
                 properties=pika.BasicProperties(
                     delivery_mode=2  # Makes the message persistent
@@ -161,7 +162,10 @@ class NAOService:
             )
 
             # Print the sent message
-            print(f"[x] Message sent to queue '{self.conversation_queue}': {value}")
+            print(f"[x] Message sent to queue '{self.conversation_queue}': {speech_value}")
+
+            self.memory.unsubscribeToEvent("WordRecognized","NaoService")
+            self.asr.popContexts()
 
         except Exception as e:
             # Catch and print any error
