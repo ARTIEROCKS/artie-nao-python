@@ -10,18 +10,28 @@ class NAOService:
 
     tone_mapping = {
         "HIGH": 1.25,
-        "LOW": 1.0
+        "MEDIUMHIGH": 1.10,
+        "MEDIUM": 1.0,
+        "MEDIUMLOW": 0.9,
+        "LOW": 0.8
     }
     speed_mapping = {
-        "HIGH": 150,
-        "LOW": 100
+        "HIGH": 90,
+        "MEDIUMHIGH": 85,
+        "MEDIUM": 80,
+        "MEDIUMLOW": 75,
+        "LOW": 70
     }
-    leds_mapping ={
-        "HAPPY": 0x0000FF00, # Green
-        "ANGRY": 0x00FFFF00, # Yellow
-        "CONTEMPT": 0x000000FF, # Blue
-        "NEUTRAL": 0x00FFFFFF # White
+    leds_mapping = {
+        "HAPPY": 0x0000FF00,  # Green
+        "ANGRY": 0x00FFFF00,  # Yellow
+        "CONTEMPT": 0x000000FF,  # Blue
+        "CALM": 0x00FFFFFF,  # White
+        "VERYANGRY": 0x00FF0000,  # Red
+        "ENCOURAGE": 0x00FF00FF,  # Magenta
+        "NEUTRAL": 0x0000FFFF  # Cyan
     }
+
     vocabulary = ["si", "no"]
 
     def __init__(self, queue_channel=None, conversation_queue=None, robot_address=None):
@@ -36,6 +46,14 @@ class NAOService:
         # Attempt to connect with retry mechanism
         self.session = self.connect_with_retry(robot_address=robot_address)
 
+        # Once done, we wake up NAO and go to stand posture
+        motion = self.session.service("ALMotion")
+        motion.wakeUp()
+
+        posture = self.session.service("ALRobotPosture")
+        posture.goToPosture("StandInit", 0.5)
+
+
         # Initializes Speech Service
         self.speech_service = SpeechService()
 
@@ -45,7 +63,7 @@ class NAOService:
             try:
                 session = qi.Session()
                 session.connect(robot_address)
-                print("Successfully connected to NAO.")
+                print(f"Successfully connected to NAO: {robot_address}")
                 return session
             except Exception as e:
                 print(f"[ERROR] Connection attempt {attempt + 1}/{max_retries} failed: {e}")
@@ -99,9 +117,9 @@ class NAOService:
         else:
             names, times, keys = happy.names, happy.times, happy.keys
 
-        if len(names) > 0:
-            motion = self.session.service('ALMotion')
-            motion.angleInterpolation(names, keys, times, True)
+        #if len(names) > 0:
+        #    motion = self.session.service('ALMotion')
+        #    motion.angleInterpolation(names, keys, times, True)
 
         # Sets how and what the robot should say
         tone = self.tone_mapping.get(bmle.speech.get('tone', '').upper(), 1.0)
@@ -112,7 +130,12 @@ class NAOService:
         tts.setParameter('speed', speed)
         tts.setParameter('pitchShift', tone)
         tts.setVolume(volume)
-        tts.say(bmle.speech['text'])
+
+        aas_configuration = {"bodyLanguageMode":"random"}
+        aas = self.session.service('ALAnimatedSpeech')
+        aas.say(bmle.speech['text'])
+
+
 
         #Now we should verify if the robot should listen to the student
         if not bmle.speech.get('end'):
@@ -121,7 +144,9 @@ class NAOService:
             if speech_value is not None:
                 self.send_speech_recognition(self.user_id, self.context_id, speech_value, self.conversation_queue)
             else:
+                aas.say('No he entendido lo que has dicho. Si sigues necesitando ayuda solicítala a través de Scratch y te ayudaré encantado.')
                 print("No speech detected!!")
+                self.reset_nao()
 
         else:
             self.reset_nao()
@@ -164,8 +189,8 @@ class NAOService:
             # Print the sent message
             print(f"[x] Message sent to queue '{self.conversation_queue}': {speech_value}")
 
-            self.memory.unsubscribeToEvent("WordRecognized","NaoService")
-            self.asr.popContexts()
+            #self.memory.unsubscribeToEvent("WordRecognized","NaoService")
+            #self.asr.popContexts()
 
         except Exception as e:
             # Catch and print any error

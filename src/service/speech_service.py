@@ -12,7 +12,7 @@ class SpeechService:
         with sr.Microphone() as source:
             self.r.adjust_for_ambient_noise(source)
             print("Please, say something")
-            audio = self.r.listen(source)
+            audio = self.r.listen(source, timeout=10)
             print("Recognizing Now... ")
 
             try:

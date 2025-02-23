@@ -54,7 +54,7 @@ def callback(ch, method, properties, body, bmle_service, nao_service, interventi
     try:
         # Checks if the waiting time has been reached or not
         if (nao_service.get_last_execution_time_difference() is None or
-                nao_service.get_last_execution_time_difference() >= interventions_waiting_time):
+                nao_service.get_last_execution_time_difference() >= 0): #int(interventions_waiting_time)):
             bmle = bmle_service.deserialize(body)
             nao_service.execute_bmle(bmle)
         else:
