@@ -2,3 +2,6 @@ pika
 python-dotenv
 pyaudio
 speechrecognition
+openai
+openai-whisper
+beepy

@@ -16,7 +16,7 @@ def start_consuming():
     interventions_waiting_time = os.getenv('APP_INTERVENTIONS_WAITING_TIME', 60)
 
     # Environment variables about the Robot
-    robot_address = os.getenv('APP_ROBOT_ADDRESS', 'tcp://192.168.0.102:9559')
+    robot_address = os.getenv('APP_ROBOT_ADDRESS', 'tcp://192.168.0.33:9559')
 
 
     # RabbitMQ connection

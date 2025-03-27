@@ -159,7 +159,7 @@ class NAOService:
 
         # Resets the posture
         posture = self.session.service('ALRobotPosture')
-        posture.goToPosture('Stand', 0.5)
+        posture.goToPosture('Rest', 0.5)
 
         # Once the robot resets, we store the last execution timestamp
         self.last_bmle_execution_time = datetime.datetime.now()
