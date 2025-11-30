@@ -29,6 +29,7 @@ class SpeechService:
 
         except Exception as e:
             print("Error :" + str(e))
+            dest = "Sí"
 
         #with sr.Microphone() as source:
             #self.r.adjust_for_ambient_noise(source)
