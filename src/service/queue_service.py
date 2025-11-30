@@ -16,7 +16,7 @@ def start_consuming():
     interventions_waiting_time = os.getenv('APP_INTERVENTIONS_WAITING_TIME', 60)
 
     # Environment variables about the Robot
-    robot_address = os.getenv('APP_ROBOT_ADDRESS', 'tcp://192.168.0.33:9559')
+    robot_address = os.getenv('APP_ROBOT_ADDRESS', 'tcp://192.168.0.29:9559')
 
 
     # RabbitMQ connection
@@ -54,7 +54,7 @@ def callback(ch, method, properties, body, bmle_service, nao_service, interventi
     try:
         # Checks if the waiting time has been reached or not
         if (nao_service.get_last_execution_time_difference() is None or
-                nao_service.get_last_execution_time_difference() >= 0): #int(interventions_waiting_time)):
+                nao_service.get_last_execution_time_difference() >= int(interventions_waiting_time)):
             bmle = bmle_service.deserialize(body)
             nao_service.execute_bmle(bmle)
         else:

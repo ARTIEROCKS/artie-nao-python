@@ -19,12 +19,12 @@ class SpeechService:
             print("Please, say something")
             beep.beep('coin')
 
-            dest = mic.listen()
+            dest = mic.listen(timeout=3, phrase_time_limit=3)
 
             print("Recognizing Now... ")
             beep.beep('ping')
 
-            dest = dest.replace(',', '').replace('"', '')
+            dest = dest.replace(',', '').replace('"', '').replace('*','')
             print("You have said: " + dest)
 
         except Exception as e:
