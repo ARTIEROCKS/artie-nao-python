@@ -8,6 +8,28 @@ from motion import bored, happy, kisses, thinking, fear, excited, chill, curious
 
 class NAOService:
 
+    @staticmethod
+    def normalize_text_for_nao(text):
+        """
+        Normaliza el texto reemplazando caracteres Unicode problemáticos
+        por sus equivalentes ASCII que el robot NAO puede procesar.
+        """
+        if not text:
+            return text
+
+        # Reemplazar comillas tipográficas por comillas normales
+        text = text.replace('\u201c', '"').replace('\u201d', '"')  # " "
+        text = text.replace('\u2018', "'").replace('\u2019', "'")  # ' '
+        text = text.replace('\u201a', ',').replace('\u201b', "'")
+
+        # Reemplazar guiones especiales
+        text = text.replace('\u2013', '-').replace('\u2014', '-')  # – —
+
+        # Reemplazar puntos suspensivos
+        text = text.replace('\u2026', '...')  # …
+
+        return text
+
     tone_mapping = {
         "HIGH": 1.25,
         "MEDIUMHIGH": 1.10,
@@ -133,7 +155,10 @@ class NAOService:
 
         aas_configuration = {"bodyLanguageMode":"random"}
         aas = self.session.service('ALAnimatedSpeech')
-        aas.say(bmle.speech['text'])
+
+        # Normalizar el texto antes de enviarlo al robot
+        normalized_text = self.normalize_text_for_nao(bmle.speech['text'])
+        aas.say(normalized_text)
 
 
 
@@ -144,7 +169,8 @@ class NAOService:
             if speech_value is not None:
                 self.send_speech_recognition(self.user_id, self.context_id, speech_value, self.conversation_queue)
             else:
-                aas.say('No he entendido lo que has dicho. Si sigues necesitando ayuda solicítala a través de Scratch y te ayudaré encantado.')
+                error_message = 'No he entendido lo que has dicho. Si sigues necesitando ayuda solicítala a través de Scratch y te ayudaré encantado.'
+                aas.say(self.normalize_text_for_nao(error_message))
                 print("No speech detected!!")
                 self.reset_nao()
 
