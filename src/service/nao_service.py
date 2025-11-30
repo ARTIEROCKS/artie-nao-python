@@ -139,9 +139,9 @@ class NAOService:
         else:
             names, times, keys = happy.names, happy.times, happy.keys
 
-        #if len(names) > 0:
-        #    motion = self.session.service('ALMotion')
-        #    motion.angleInterpolation(names, keys, times, True)
+        if len(names) > 0:
+            motion = self.session.service('ALMotion')
+            motion.angleInterpolation(names, keys, times, True)
 
         # Sets how and what the robot should say
         tone = self.tone_mapping.get(bmle.speech.get('tone', '').upper(), 1.0)
@@ -159,8 +159,6 @@ class NAOService:
         # Normalizar el texto antes de enviarlo al robot
         normalized_text = self.normalize_text_for_nao(bmle.speech['text'])
         aas.say(normalized_text)
-
-
 
         #Now we should verify if the robot should listen to the student
         if not bmle.speech.get('end'):
