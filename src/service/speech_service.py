@@ -46,7 +46,7 @@ class SpeechService:
                 beep.beep('coin')
 
                 # Listen with timeout
-                audio = self.r.listen(source, timeout=15, phrase_time_limit=7)
+                audio = self.r.listen(source, timeout=15, phrase_time_limit=10)
 
                 print("[DEBUG] Audio captured successfully")
                 print("Transcribing with Whisper now... ")
