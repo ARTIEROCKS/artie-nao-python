@@ -139,9 +139,9 @@ class NAOService:
         else:
             names, times, keys = happy.names, happy.times, happy.keys
 
-        if len(names) > 0:
-            motion = self.session.service('ALMotion')
-            motion.angleInterpolation(names, keys, times, True)
+        #if len(names) > 0:
+        #    motion = self.session.service('ALMotion')
+        #    motion.angleInterpolation(names, keys, times, True)
 
         # Sets how and what the robot should say
         tone = self.tone_mapping.get(bmle.speech.get('tone', '').upper(), 1.0)
@@ -162,7 +162,7 @@ class NAOService:
 
         #Now we should verify if the robot should listen to the student
         if not bmle.speech.get('end'):
-            speech_value = self.speech_service.listen()
+            speech_value = self.speech_service.listen(bmle.gaze)
 
             if speech_value is not None:
                 self.send_speech_recognition(self.user_id, self.context_id, speech_value, self.conversation_queue)

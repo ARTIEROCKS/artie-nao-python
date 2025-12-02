@@ -13,7 +13,7 @@ def start_consuming():
     rabbitmq_vhost = os.getenv('APP_RABBITMQ_VHOST', '/')
     pedagogical_interventions_queue = os.getenv('APP_RABBITMQ_INTERVENTIONS_QUEUE', '')
     conversations_queue = os.getenv('APP_RABBITMQ_CONVERSATIONS_QUEUE','')
-    interventions_waiting_time = os.getenv('APP_INTERVENTIONS_WAITING_TIME', 60)
+    interventions_waiting_time = os.getenv('APP_INTERVENTIONS_WAITING_TIME', 5)
 
     # Environment variables about the Robot
     robot_address = os.getenv('APP_ROBOT_ADDRESS', 'tcp://192.168.0.29:9559')
